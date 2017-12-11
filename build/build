@@ -1,0 +1,71 @@
+#!/bin/bash
+
+# Directory Setup
+BUILD_DIR="$( cd "$(dirname "$0")" ; pwd -P )"
+ROOT_DIR="$BUILD_DIR/.."
+APPS_DIR="$ROOT_DIR/apps"
+SRC_INCLUDE_DIR="$ROOT_DIR/include"
+SRC_OBJ_DIR="$ROOT_DIR/obj"
+DEPS_DIR="$ROOT_DIR/deps"
+DEPS_INCLUDE_DIR="$DEPS_DIR/include"
+DEPS_LIB_DIR="$DEPS_DIR/lib"
+BIN_DIR="$ROOT_DIR/bin"
+
+mkdir -p $SRC_OBJ_DIR
+mkdir -p $BIN_DIR
+
+# Compiler Setup
+COMPILER="g++-7"
+FLAGS=" -std=c++1z          \
+        -O3                 \
+        -Wall               \
+        -pedantic           \
+        -Werror"
+
+        
+BOOST_FLAGS="   -I $DEPS_INCLUDE_DIR            \
+                -L $DEPS_LIB_DIR                \
+                -static                         \
+                -lboost_system                  \
+                -lboost_thread                  \
+                -lpthread"
+
+# Find target apps source files dir
+# build all unless specified app folder
+TARGET_APP_ARG="$1"
+if [ "$TARGET_APP_ARG" != "" ]; then
+    target_app_dir=$1
+else
+    target_app_dir="$APPS_DIR"
+fi
+
+
+# Compile Library Object Files
+cd $SRC_OBJ_DIR
+$COMPILER -c $FLAGS $(find $SRC_INCLUDE_DIR | grep .cpp) $BOOST_FLAGS
+
+# Compile Target App(s)
+
+function build_app()
+{
+    APP_DIR=$APPS_DIR/$1
+    OUTPUT=$(basename $1)    
+    
+    echo -e "\n ** Building $OUTPUT ** \n"
+    
+    $COMPILER $FLAGS                            \
+        -o $BIN_DIR/$OUTPUT                     \
+        $(find $SRC_OBJ_DIR | grep ".o$")       \
+        $(find $APP_DIR | grep ".cpp$")         \
+        -I $SRC_INCLUDE_DIR $BOOST_FLAGS
+        
+    echo -e "\n ** Done ** \n"
+}
+
+if [ "$target_app_dir" == "$APPS_DIR" ]; then
+    for app in $(ls $target_app_dir); do
+        build_app $app
+    done
+else
+    build_app $target_app_dir
+fi
