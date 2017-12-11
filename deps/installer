@@ -1,0 +1,39 @@
+#!/bin/bash
+
+INSTALL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+UTIL_SCRIPTS_DIR="$INSTALL_DIR/.tmp.util_scripts"
+UTIL_SCRIPTS_REPO="https://github.com/sigma-blight/utility_scripts.git"
+INSTALL_SCRIPT_DIR="$UTIL_SCRIPTS_DIR/utility_scripts/install"
+SRC_DIR="$INSTALL_DIR/src"
+LIB_DIR="$INSTALL_DIR/lib"
+INC_DIR="$INSTALL_DIR/include"
+
+# Directory Setup
+rm -rf $UTIL_SCRIPTS_DIR
+mkdir $UTIL_SCRIPTS_DIR
+mkdir $SRC_DIR
+mkdir $LIB_DIR
+mkdir $INC_DIR
+
+# Clone Utility Scripts
+cd $UTIL_SCRIPTS_DIR
+git clone $UTIL_SCRIPTS_REPO
+
+# Build Google Framework
+$INSTALL_SCRIPT_DIR/./google_framework $SRC_DIR
+
+# Copy Libs and Headers
+cp -rf $SRC_DIR/gtest_lib/* $LIB_DIR/
+cp -rf $SRC_DIR/gbench_lib/* $LIB_DIR/
+cp -rf $SRC_DIR/gtest_include/* $INC_DIR/
+cp -rf $SRC_DIR/gbench_include/* $INC_DIR/
+
+# Build Boost
+$INSTALL_SCRIPT_DIR/./boost $SRC_DIR
+
+# Copy Libs and Headers
+cp -rf $SRC_DIR/boost_build/lib/* $LIB_DIR/
+cp -rf $SRC_DIR/boost_build/include/* $INC_DIR/
+
+# Cleanup
+rm -rf $UTIL_SCRIPTS_DIR
