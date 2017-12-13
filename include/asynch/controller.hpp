@@ -1,10 +1,14 @@
 #ifndef     _ASYNCH_CONTROLLER_HPP_
 #define     _ASYNCH_CONTROLLER_HPP_
 
+#include <thread>
+#include <vector>
 #include <utility>
 #include <algorithm>
 #include <functional> // std::invoke
 #include <type_traits>
+
+#include <boost/asio/io_service.hpp>
 
 #include <meta/traits/is_same_template_type.hpp>
 
@@ -52,16 +56,33 @@ namespace asynch
       private:
         static_assert((meta::is_same_template_type<Event, Events_>() && ...),
             "Requires all template parameters to be events");
+            
+        
+        
+        boost::asio::io_service io_service;
+        std::vector<std::thread> thread_pool;
         
       public:
         constexpr Controller(Events_ ... events) :
             Events_{ std::move(events) }...
         {}
         
+        void execute(const size_t threads)
+        {
+            thread_pool.reserve(threads);
+            
+            for (unsigned i = 0; i != threads; ++i) {
+                thread_pool.emplace_back([this]{ io_service.run(); });
+            }
+                
+            std::for_each(thread_pool.begin(), thread_pool.end(),
+                [](auto & thread){ thread.join(); });
+        }
+        
         template <typename Tag_, typename... Args_>
-        constexpr void operator() (Tag_, Args_ && ... args)
+        constexpr void operator() (Tag_, Args_ ... args)
         {            
-            get_event<Tag_, Events_...>()(*this, std::forward<Args_>(args)...);
+            io_service.post([=]{ get_event<Tag_, Events_...>()(*this, args...); });
         }
         
       private:

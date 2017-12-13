@@ -68,8 +68,9 @@ int main()
     };
     
     controller("accept"_s);    
-    // Currently not aschronous, will never get here
     controller("refresh"_s);
+    
+    controller.execute(2);
     
     /*  End goal output:
     
