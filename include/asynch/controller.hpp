@@ -1,8 +1,8 @@
 #ifndef     _ASYNCH_CONTROLLER_HPP_
 #define     _ASYNCH_CONTROLLER_HPP_
 
-#include <tuple>
 #include <utility>
+#include <algorithm>
 #include <functional> // std::invoke
 #include <type_traits>
 
@@ -30,12 +30,12 @@ namespace asynch
         {}
         
         template <typename... Args_>
-        constexpr decltype(auto) operator() (Args_ && ... args)
+        constexpr void operator() (Args_ && ... args) const
         {
             static_assert(std::is_invocable_v<Delegate_, decltype(args)...>,
                 "Invalid invocation arguments");
                 
-            return std::invoke(delegate, std::forward<Args_>(args)...);
+            std::invoke(delegate, std::forward<Args_>(args)...);
         }
     };
     
@@ -47,39 +47,32 @@ namespace asynch
     /////////////////////////////////
     
     template <typename... Events_>
-    class Controller
+    class Controller : private Events_...
     {
       private:
         static_assert((meta::is_same_template_type<Event, Events_>() && ...),
             "Requires all template parameters to be events");
-            
-        using tuple_t = std::tuple<Events_...>;
-        tuple_t events;
         
       public:
         constexpr Controller(Events_ ... events) :
-            events{ std::move(events)... }
+            Events_{ std::move(events) }...
         {}
         
         template <typename Tag_, typename... Args_>
-        constexpr decltype(auto) operator() (Tag_, Args_ && ... args)
-        {
-            return get_event<Tag_>()(*this, std::forward<Args_>(args)...);
+        constexpr void operator() (Tag_, Args_ && ... args)
+        {            
+            get_event<Tag_, Events_...>()(*this, std::forward<Args_>(args)...);
         }
         
       private:
-        
-        template <typename Tag_, size_t index_ = 0>
-        constexpr decltype(auto) get_event()
+      
+        template <typename Tag_, typename Event_, typename... Trail_>
+        constexpr decltype(auto) get_event() const
         {
-            // short circuit stop if index range is invalid
-            static_assert(index_ < sizeof...(Events_), "Tag not found");
-            
-            auto & event = std::get<index_>(events);
-            using event_t = std::decay_t<decltype(event)>;
-            if constexpr (std::is_same_v<Tag_, typename event_t::tag_t>)
-                return event;
-            else return get_event<Tag_, index_ + 1>();
+            if constexpr (std::is_same_v<Tag_, typename Event_::tag_t>)
+                return static_cast<const Event_ &>(*this);
+            else
+                return get_event<Tag_, Trail_...>();
         }
     };
 
